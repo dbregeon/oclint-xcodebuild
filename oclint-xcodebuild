@@ -65,40 +65,22 @@ def handle_precompiled_header(clang_commands):
 
 if os.path.isfile(XCODEBUILD_LOG_PATH):
     with open(XCODEBUILD_LOG_PATH) as xcodebuild_log_file:
-        while 1:
-            log_line = xcodebuild_log_file.readline()
-            if not log_line:
-                break
-            process_pch_re = re.search("^ProcessPCH (.+)\.pch\.(pch|pth) (.+)\.pch", log_line.strip())
+        log_line = xcodebuild_log_file.readline()
+        while log_line:
+            process_pch_re = re.search("^ProcessPCH (.+)\.pch\.p[ct]h (.+)\.pch", log_line.strip())
             if process_pch_re:
-                while 1:
-                    log_line = xcodebuild_log_file.readline()
-                    if not log_line:
-                        break
-                    print log_line
+                log_line = xcodebuild_log_file.readline()
+                while log_line:
                     working_directory_re = re.search("^cd (.+)", log_line.strip())
                     if working_directory_re:
-                        pch_dictionary[process_pch_re.group(1) + ".pch"] = working_directory_re.group(1) + "/" + process_pch_re.group(3) + ".pch"
+                        pch_dictionary[process_pch_re.group(1) + ".pch"] = working_directory_re.group(1) + "/" + process_pch_re.group(2) + ".pch"
                         break
-            # below 11 lines of code are duplicated, serious refactoring is needed badly
-            process_pch_with_quote_re = re.search('^ProcessPCH "(.+)\.pch\.(pch|pth)" "(.+)\.pch"', log_line.strip())
-            if process_pch_with_quote_re:
-                while 1:
                     log_line = xcodebuild_log_file.readline()
-                    if not log_line:
-                        break
-                    print log_line
-                    working_directory_with_quote_re = re.search('^cd "(.+)"', log_line.strip())
-                    if working_directory_with_quote_re:
-                        pch_dictionary[process_pch_with_quote_re.group(1) + ".pch"] = working_directory_with_quote_re.group(1) + "/" + process_pch_with_quote_re.group(3) + ".pch"
-                        break
             source_compilation_setting_re = re.search("^CompileC", log_line.strip())
             if source_compilation_setting_re:
                 working_directory = CURRENT_WORKING_DIRECTORY
-                while 1:
-                    log_line = xcodebuild_log_file.readline()
-                    if not log_line:
-                        break
+                log_line = xcodebuild_log_file.readline()
+                while log_line:
                     working_directory_re = re.search('^cd "(.+)"', log_line.strip())
                     if not working_directory_re:
                         working_directory_re = re.search("^cd (.+)", log_line.strip())
@@ -111,7 +93,7 @@ if os.path.isfile(XCODEBUILD_LOG_PATH):
 
                         source_file_re = re.search('-c "(.+?)"', clang_command)
                         if not source_file_re:
-                            source_file_re = re.search(" -c (.+?) -o", clang_command)
+                            source_file_re = re.search("-c (.+?) -o", clang_command)
                         if source_file_re:
                             if not args.exclusion or not re.match(args.exclusion, working_directory):
                                 source_file = source_file_re.group(1)
@@ -121,6 +103,8 @@ if os.path.isfile(XCODEBUILD_LOG_PATH):
                                 else:
                                     source_list_out_cwd += source_file_group
                             break
+                    log_line = xcodebuild_log_file.readline()
+            log_line = xcodebuild_log_file.readline()
     source_list = source_list_in_cwd + source_list_out_cwd
     with open(JSON_COMPILATION_DATABASE, "w") as json_compilation_database_file:
         json_compilation_database_file.write(json.dumps(source_list, indent=2))
